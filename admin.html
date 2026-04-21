@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sandriel Barbearia — Admin</title>
+  <link rel="icon" href="assets/logosandriel.png">
+  <link rel="stylesheet" href="css/admin.css">
+</head>
+<body>
+  <div class="login-wrap">
+    <div class="login-box">
+      <img src="assets/logosandriel.png" alt="Sandriel Barbearia">
+      <h1>SANDRIEL</h1>
+      <p>Painel Administrativo</p>
+
+      <form id="form-login">
+        <label for="email">E-mail</label>
+        <input type="email" id="email" required placeholder="sandriel@sandriel.com">
+
+        <label for="senha">Senha</label>
+        <input type="password" id="senha" required placeholder="••••••••">
+
+        <button type="submit" id="btn-entrar">ENTRAR</button>
+        <p class="erro-msg" id="erro"></p>
+      </form>
+
+      <p style="margin-top:20px;"><a href="index.html" style="color:#aaa;text-decoration:none;font-size:0.85rem;">← Voltar para o site</a></p>
+    </div>
+  </div>
+
+  <script type="module" src="js/auth.js"></script>
+</body>
+</html>

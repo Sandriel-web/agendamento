@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sandriel Barbearia — Agende seu horário</title>
+  <link rel="icon" href="assets/logosandriel.png">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+  <header>
+    <img src="assets/logosandriel.png" alt="Sandriel Barbearia">
+    <div class="stars-deco">★ ★ ★ ★ ★</div>
+    <h1>SANDRIEL BARBEARIA</h1>
+    <p>Agende seu horário online</p>
+  </header>
+
+  <div class="container">
+
+    <div class="card">
+      <h2>1. Seus dados</h2>
+      <label for="nome">Nome completo</label>
+      <input type="text" id="nome" placeholder="Ex: João Silva" required>
+
+      <label for="telefone">Telefone / WhatsApp</label>
+      <input type="tel" id="telefone" placeholder="(64) 99999-9999" required>
+    </div>
+
+    <div class="card">
+      <h2>2. Escolha o serviço</h2>
+      <label for="servico">Serviço</label>
+      <select id="servico"><option value="">Carregando...</option></select>
+    </div>
+
+    <div class="card">
+      <h2>3. Escolha o barbeiro</h2>
+      <label for="barbeiro">Barbeiro</label>
+      <select id="barbeiro"><option value="">Selecione um serviço primeiro</option></select>
+    </div>
+
+    <div class="card">
+      <h2>4. Escolha data e horário</h2>
+      <label for="data">Data</label>
+      <input type="date" id="data">
+
+      <label style="margin-top:20px;">Horários disponíveis</label>
+      <div class="horarios-grid" id="horarios">
+        <p style="grid-column:1/-1;color:#aaa;">Selecione barbeiro e data.</p>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>5. Confirmar</h2>
+      <div id="resumo" style="color:#ccc;margin-bottom:10px;">Complete os dados acima.</div>
+      <button id="btn-agendar" disabled>CONFIRMAR AGENDAMENTO</button>
+      <div id="mensagem"></div>
+
+      <a href="https://wa.me/5564996260078?text=Ol%C3%A1!%20Preciso%20cancelar%20meu%20agendamento."
+         target="_blank" class="btn btn-whatsapp" style="display:block;text-align:center;text-decoration:none;margin-top:15px;">
+         💬 Cancelar via WhatsApp
+      </a>
+    </div>
+
+  </div>
+
+  <footer>
+    <p>© Sandriel Barbearia • Todos os direitos reservados</p>
+    <p style="margin-top:5px;"><a href="admin.html" style="color:#666;text-decoration:none;font-size:0.8rem;">Área do Administrador</a></p>
+  </footer>
+
+  <script type="module" src="js/cliente.js"></script>
+</body>
+</html>

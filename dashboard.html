@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dashboard — Sandriel Barbearia</title>
+  <link rel="icon" href="assets/logosandriel.png">
+  <link rel="stylesheet" href="css/admin.css">
+</head>
+<body>
+  <div class="app">
+    <!-- Sidebar -->
+    <aside class="sidebar">
+      <div class="sidebar-logo">
+        <img src="assets/logosandriel.png" alt="Logo">
+        <h2>SANDRIEL</h2>
+      </div>
+      <ul class="menu">
+        <li data-secao="dashboard" class="ativo">📊 Dashboard</li>
+        <li data-secao="agenda">📅 Agenda</li>
+        <li data-secao="barbeiros">✂️ Barbeiros</li>
+        <li data-secao="servicos">💈 Serviços</li>
+        <li data-secao="config">⚙️ Configurações</li>
+        <li id="btn-sair" class="sair">🚪 Sair</li>
+      </ul>
+    </aside>
+
+    <!-- Conteúdo -->
+    <main class="conteudo">
+
+      <!-- DASHBOARD -->
+      <section class="secao ativa" id="sec-dashboard">
+        <h1>Dashboard</h1>
+        <div class="cards-grid">
+          <div class="card-metric"><div class="label">Agendamentos hoje</div><div class="valor" id="m-hoje">0</div></div>
+          <div class="card-metric"><div class="label">Agendamentos semana</div><div class="valor" id="m-semana">0</div></div>
+          <div class="card-metric"><div class="label">Faturamento do dia</div><div class="valor" id="m-faturamento">R$ 0</div></div>
+          <div class="card-metric"><div class="label">Total barbeiros</div><div class="valor" id="m-barbeiros">0</div></div>
+          <div class="card-metric"><div class="label">Total serviços</div><div class="valor" id="m-servicos">0</div></div>
+        </div>
+        <h2 style="color:var(--dourado);margin-top:20px;">Próximos agendamentos</h2>
+        <div class="lista" id="lista-proximos"></div>
+      </section>
+
+      <!-- AGENDA -->
+      <section class="secao" id="sec-agenda">
+        <h1>Agenda</h1>
+        <div class="filtros">
+          <div>
+            <label>Data</label>
+            <input type="date" id="filtro-data">
+          </div>
+          <div>
+            <label>Barbeiro</label>
+            <select id="filtro-barbeiro"><option value="">Todos</option></select>
+          </div>
+        </div>
+        <div class="lista" id="lista-agenda"></div>
+      </section>
+
+      <!-- BARBEIROS -->
+      <section class="secao" id="sec-barbeiros">
+        <h1>Barbeiros</h1>
+        <form class="form-cadastro" id="form-barbeiro">
+          <h3 style="color:var(--dourado-claro);margin-bottom:15px;">Cadastrar novo barbeiro</h3>
+          <div class="form-row">
+            <div>
+              <label>Nome</label>
+              <input type="text" id="b-nome" required>
+            </div>
+            <div>
+              <label>Telefone</label>
+              <input type="text" id="b-telefone">
+            </div>
+          </div>
+          <button type="submit">Cadastrar Barbeiro</button>
+        </form>
+        <div class="lista" id="lista-barbeiros"></div>
+      </section>
+
+      <!-- SERVIÇOS -->
+      <section class="secao" id="sec-servicos">
+        <h1>Serviços</h1>
+        <form class="form-cadastro" id="form-servico">
+          <h3 style="color:var(--dourado-claro);margin-bottom:15px;">Cadastrar novo serviço</h3>
+          <div class="form-row">
+            <div>
+              <label>Nome do serviço</label>
+              <input type="text" id="s-nome" required>
+            </div>
+            <div>
+              <label>Duração (minutos)</label>
+              <input type="number" id="s-duracao" min="10" step="5" required>
+            </div>
+            <div>
+              <label>Preço (R$)</label>
+              <input type="number" id="s-preco" min="0" step="0.01" required>
+            </div>
+          </div>
+          <button type="submit">Cadastrar Serviço</button>
+        </form>
+        <div class="lista" id="lista-servicos"></div>
+      </section>
+
+      <!-- CONFIGURAÇÕES -->
+      <section class="secao" id="sec-config">
+        <h1>Configurações</h1>
+        <form class="form-cadastro" id="form-config">
+          <h3 style="color:var(--dourado-claro);margin-bottom:15px;">Horário de funcionamento</h3>
+
+          <label>Dias de funcionamento</label>
+          <div class="dias-semana" id="dias-semana">
+            <div class="dia-chip" data-dia="0">Dom</div>
+            <div class="dia-chip" data-dia="1">Seg</div>
+            <div class="dia-chip" data-dia="2">Ter</div>
+            <div class="dia-chip" data-dia="3">Qua</div>
+            <div class="dia-chip" data-dia="4">Qui</div>
+            <div class="dia-chip" data-dia="5">Sex</div>
+            <div class="dia-chip" data-dia="6">Sáb</div>
+          </div>
+
+          <div class="form-row" style="margin-top:15px;">
+            <div>
+              <label>Hora de abertura</label>
+              <input type="time" id="hora-abertura" required>
+            </div>
+            <div>
+              <label>Hora de fechamento</label>
+              <input type="time" id="hora-fechamento" required>
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div>
+              <label>Início do intervalo (opcional)</label>
+              <input type="time" id="intervalo-inicio">
+            </div>
+            <div>
+              <label>Fim do intervalo (opcional)</label>
+              <input type="time" id="intervalo-fim">
+            </div>
+          </div>
+
+          <button type="submit">Salvar Configurações</button>
+          <p id="config-msg" style="text-align:center;margin-top:10px;color:var(--verde);"></p>
+        </form>
+      </section>
+
+    </main>
+  </div>
+
+  <script type="module" src="js/dashboard.js"></script>
+  <script type="module" src="js/admin.js"></script>
+</body>
+</html>
