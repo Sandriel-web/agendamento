@@ -1,270 +1,248 @@
 import { db } from './firebase-config.js';
 import {
-  collection, addDoc, onSnapshot, getDoc, doc, Timestamp, query, where
+  collection, getDocs, addDoc, query, where, Timestamp
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
-// Estado
-let servicos = [];
-let barbeiros = [];
-let config = null;
-let agendamentosDoDia = []; // do barbeiro + data selecionados
-let horarioSelecionado = null;
+// === ESTADO ===
+const estado = {
+  profissional: null,
+  servico: null,
+  dia: null,
+  horario: null
+};
 
-// Elementos
-const elNome = document.getElementById('nome');
-const elTel = document.getElementById('telefone');
-const selServico = document.getElementById('servico');
-const selBarbeiro = document.getElementById('barbeiro');
-const elData = document.getElementById('data');
-const gridHorarios = document.getElementById('horarios');
-const elResumo = document.getElementById('resumo');
-const btnAgendar = document.getElementById('btn-agendar');
-const elMsg = document.getElementById('mensagem');
+// === ELEMENTOS ===
+const elProfissionais = document.getElementById('lista-profissionais');
+const elServicos = document.getElementById('lista-servicos');
+const elDias = document.getElementById('lista-dias');
+const elHorarios = document.getElementById('lista-horarios');
+const elForm = document.getElementById('form-agendamento');
+const elMensagem = document.getElementById('mensagem');
 
-// Data mínima = hoje
-elData.min = new Date().toISOString().split('T')[0];
-elData.value = new Date().toISOString().split('T')[0];
+// === INIT ===
+carregarProfissionais();
+carregarServicos();
+gerarDias();
 
-// Máscara de telefone
-elTel.addEventListener('input', (e) => {
-  let v = e.target.value.replace(/\D/g, '').slice(0, 11);
-  if (v.length > 6) v = `(${v.slice(0,2)}) ${v.slice(2,7)}-${v.slice(7)}`;
-  else if (v.length > 2) v = `(${v.slice(0,2)}) ${v.slice(2)}`;
-  e.target.value = v;
-});
+// === PROFISSIONAIS ===
+async function carregarProfissionais() {
+  try {
+    const snap = await getDocs(collection(db, 'profissionais'));
+    if (snap.empty) {
+      elProfissionais.innerHTML = '<p class="carregando">Nenhum profissional cadastrado.</p>';
+      return;
+    }
+    elProfissionais.innerHTML = '';
+    snap.forEach(doc => {
+      const p = { id: doc.id, ...doc.data() };
+      const card = document.createElement('div');
+      card.className = 'card';
+      card.dataset.id = p.id;
 
-// Carrega serviços
-onSnapshot(collection(db, 'servicos'), (snap) => {
-  servicos = [];
-  snap.forEach(d => servicos.push({ id: d.id, ...d.data() }));
-  servicos.sort((a,b) => a.nome.localeCompare(b.nome));
+      const avatar = p.foto
+        ? `<img src="${p.foto}" alt="${p.nome}" class="avatar" />`
+        : `<div class="avatar-placeholder">${(p.nome || '?')[0].toUpperCase()}</div>`;
 
-  selServico.innerHTML = '<option value="">Selecione...</option>' +
-    servicos.map(s => `<option value="${s.id}">${s.nome} — ${s.duracao}min — R$ ${Number(s.preco).toFixed(2).replace('.', ',')}</option>`).join('');
-});
-
-// Carrega barbeiros
-onSnapshot(collection(db, 'barbeiros'), (snap) => {
-  barbeiros = [];
-  snap.forEach(d => barbeiros.push({ id: d.id, ...d.data() }));
-  barbeiros.sort((a,b) => a.nome.localeCompare(b.nome));
-
-  selBarbeiro.innerHTML = '<option value="">Selecione...</option>' +
-    barbeiros.map(b => `<option value="${b.id}">${b.nome}</option>`).join('');
-});
-
-// Carrega config
-(async () => {
-  const snap = await getDoc(doc(db, 'config', 'horarios'));
-  if (snap.exists()) config = snap.data();
-  else config = { diasSemana: [1,2,3,4,5,6], horaAbertura: '09:00', horaFechamento: '19:00' };
-  renderHorarios();
-})();
-
-// Eventos
-[selServico, selBarbeiro, elData].forEach(el => el.addEventListener('change', () => {
-  horarioSelecionado = null;
-  escutarAgendamentos();
-}));
-
-// Escuta agendamentos em tempo real para aquele barbeiro+data
-let unsubAgendamentos = null;
-function escutarAgendamentos() {
-  if (unsubAgendamentos) unsubAgendamentos();
-
-  const barbId = selBarbeiro.value;
-  const dataStr = elData.value;
-  if (!barbId || !dataStr) {
-    agendamentosDoDia = [];
-    renderHorarios();
-    return;
-  }
-
-  const ini = new Date(dataStr + 'T00:00:00');
-  const fim = new Date(dataStr + 'T23:59:59');
-
-  const q = query(
-    collection(db, 'agendamentos'),
-    where('barbeiroId', '==', barbId),
-    where('dataHoraInicio', '>=', Timestamp.fromDate(ini)),
-    where('dataHoraInicio', '<=', Timestamp.fromDate(fim))
-  );
-
-  unsubAgendamentos = onSnapshot(q, (snap) => {
-    agendamentosDoDia = [];
-    snap.forEach(d => agendamentosDoDia.push({ id: d.id, ...d.data() }));
-    renderHorarios();
-    atualizarResumo();
-  });
-}
-
-// Gera e renderiza slots
-function renderHorarios() {
-  if (!config) return;
-  const servId = selServico.value;
-  const barbId = selBarbeiro.value;
-  const dataStr = elData.value;
-
-  if (!servId || !barbId || !dataStr) {
-    gridHorarios.innerHTML = '<p style="grid-column:1/-1;color:#aaa;">Escolha serviço, barbeiro e data.</p>';
-    return;
-  }
-
-  const servico = servicos.find(s => s.id === servId);
-  if (!servico) return;
-
-  const data = new Date(dataStr + 'T00:00:00');
-  const diaSemana = data.getDay();
-
-  if (!config.diasSemana.includes(diaSemana)) {
-    gridHorarios.innerHTML = '<p style="grid-column:1/-1;color:#ff6b7a;">Barbearia fechada neste dia.</p>';
-    return;
-  }
-
-  const slots = gerarSlots(data, servico.duracao);
-  if (slots.length === 0) {
-    gridHorarios.innerHTML = '<p style="grid-column:1/-1;color:#ff6b7a;">Sem horários disponíveis.</p>';
-    return;
-  }
-
-  const agora = new Date();
-  gridHorarios.innerHTML = slots.map(slot => {
-    const ocupado = estaOcupado(slot, servico.duracao);
-    const passou = slot < agora;
-    const disabled = ocupado || passou;
-    const cls = disabled ? 'horario-slot ocupado' : 'horario-slot';
-    const label = slot.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-    const iso = slot.toISOString();
-    const sel = horarioSelecionado === iso ? ' selecionado' : '';
-    return `<div class="${cls}${sel}" data-iso="${iso}" ${disabled ? 'data-disabled="1"' : ''}>${label}</div>`;
-  }).join('');
-
-  // Clique nos slots
-  gridHorarios.querySelectorAll('.horario-slot').forEach(el => {
-    if (el.dataset.disabled) return;
-    el.addEventListener('click', () => {
-      horarioSelecionado = el.dataset.iso;
-      gridHorarios.querySelectorAll('.horario-slot').forEach(x => x.classList.remove('selecionado'));
-      el.classList.add('selecionado');
-      atualizarResumo();
+      card.innerHTML = `${avatar}<div class="nome">${p.nome}</div>`;
+      card.addEventListener('click', () => selecionarProfissional(p, card));
+      elProfissionais.appendChild(card);
     });
-  });
-}
-
-function gerarSlots(data, duracao) {
-  const slots = [];
-  const [hA, mA] = config.horaAbertura.split(':').map(Number);
-  const [hF, mF] = config.horaFechamento.split(':').map(Number);
-  const abre = new Date(data); abre.setHours(hA, mA, 0, 0);
-  const fecha = new Date(data); fecha.setHours(hF, mF, 0, 0);
-
-  let intIni = null, intFim = null;
-  if (config.intervaloInicio && config.intervaloFim) {
-    const [hi, mi] = config.intervaloInicio.split(':').map(Number);
-    const [hf2, mf2] = config.intervaloFim.split(':').map(Number);
-    intIni = new Date(data); intIni.setHours(hi, mi, 0, 0);
-    intFim = new Date(data); intFim.setHours(hf2, mf2, 0, 0);
+  } catch (e) {
+    console.error(e);
+    elProfissionais.innerHTML = '<p class="carregando">Erro ao carregar profissionais.</p>';
   }
+}
 
-  let atual = new Date(abre);
-  while (atual.getTime() + duracao*60000 <= fecha.getTime()) {
-    const fimSlot = new Date(atual.getTime() + duracao*60000);
-    // Não inclui slots que invadem o intervalo
-    const invadeIntervalo = intIni && intFim && atual < intFim && fimSlot > intIni;
-    if (!invadeIntervalo) slots.push(new Date(atual));
-    atual = new Date(atual.getTime() + duracao*60000);
+function selecionarProfissional(p, card) {
+  estado.profissional = p;
+  document.querySelectorAll('#lista-profissionais .card').forEach(c => c.classList.remove('selecionado'));
+  card.classList.add('selecionado');
+  atualizarHorarios();
+}
+
+// === SERVIÇOS ===
+async function carregarServicos() {
+  try {
+    const snap = await getDocs(collection(db, 'servicos'));
+    if (snap.empty) {
+      elServicos.innerHTML = '<p class="carregando">Nenhum serviço cadastrado.</p>';
+      return;
+    }
+    elServicos.innerHTML = '';
+    snap.forEach(doc => {
+      const s = { id: doc.id, ...doc.data() };
+      const card = document.createElement('div');
+      card.className = 'card';
+      card.dataset.id = s.id;
+      card.innerHTML = `
+        <div class="avatar-placeholder">✂️</div>
+        <div class="nome">${s.nome}</div>
+        <div class="preco">R$ ${Number(s.preco || 0).toFixed(2)}</div>
+      `;
+      card.addEventListener('click', () => selecionarServico(s, card));
+      elServicos.appendChild(card);
+    });
+  } catch (e) {
+    console.error(e);
+    elServicos.innerHTML = '<p class="carregando">Erro ao carregar serviços.</p>';
   }
-  return slots;
 }
 
-function estaOcupado(slot, duracao) {
-  const inicio = slot.getTime();
-  const fim = inicio + duracao*60000;
-  return agendamentosDoDia.some(a => {
-    if (a.status === 'cancelado') return false;
-    const aIni = a.dataHoraInicio.toDate().getTime();
-    const aFim = a.dataHoraFim.toDate().getTime();
-    return inicio < aFim && fim > aIni; // overlap
-  });
+function selecionarServico(s, card) {
+  estado.servico = s;
+  document.querySelectorAll('#lista-servicos .card').forEach(c => c.classList.remove('selecionado'));
+  card.classList.add('selecionado');
 }
 
-function atualizarResumo() {
-  const nome = elNome.value.trim();
-  const tel = elTel.value.trim();
-  const servico = servicos.find(s => s.id === selServico.value);
-  const barbeiro = barbeiros.find(b => b.id === selBarbeiro.value);
+// === DIAS (30 dias à frente) ===
+function gerarDias() {
+  const nomesDias = ['DOM', 'SEG', 'TER', 'QUA', 'QUI', 'SEX', 'SÁB'];
+  const hoje = new Date();
+  hoje.setHours(0, 0, 0, 0);
+  elDias.innerHTML = '';
 
-  if (!nome || !tel || !servico || !barbeiro || !horarioSelecionado) {
-    elResumo.innerHTML = 'Complete os dados acima.';
-    btnAgendar.disabled = true;
+  for (let i = 0; i < 30; i++) {
+    const data = new Date(hoje);
+    data.setDate(hoje.getDate() + i);
+
+    const card = document.createElement('div');
+    card.className = 'card-dia';
+    card.dataset.data = data.toISOString().split('T')[0];
+    card.innerHTML = `
+      <div class="dia-semana">${i === 0 ? 'HOJE' : nomesDias[data.getDay()]}</div>
+      <div class="dia-numero">${String(data.getDate()).padStart(2, '0')}</div>
+    `;
+    card.addEventListener('click', () => selecionarDia(data, card));
+    elDias.appendChild(card);
+  }
+}
+
+function selecionarDia(data, card) {
+  estado.dia = data;
+  document.querySelectorAll('.card-dia').forEach(c => c.classList.remove('selecionado'));
+  card.classList.add('selecionado');
+  atualizarHorarios();
+}
+
+// === HORÁRIOS ===
+async function atualizarHorarios() {
+  if (!estado.profissional || !estado.dia) {
+    elHorarios.innerHTML = '<p class="info-horario">Selecione um profissional e um dia.</p>';
     return;
   }
 
-  const dt = new Date(horarioSelecionado);
-  elResumo.innerHTML = `
-    <strong style="color:var(--dourado);">Resumo do agendamento</strong><br>
-    👤 ${nome}<br>
-    ✂️ ${servico.nome} — R$ ${Number(servico.preco).toFixed(2).replace('.', ',')}<br>
-    💈 Barbeiro: ${barbeiro.nome}<br>
-    📅 ${dt.toLocaleString('pt-BR', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' })}
-  `;
-  btnAgendar.disabled = false;
+  elHorarios.innerHTML = '<p class="info-horario">Carregando horários...</p>';
+
+  // Horários padrão (pode ajustar)
+  const horariosPadrao = [
+    '09:00', '10:00', '11:00', '13:00', '14:00',
+    '15:00', '16:00', '17:00', '18:00', '19:00'
+  ];
+
+  // Buscar agendamentos existentes
+  const inicioDia = new Date(estado.dia);
+  inicioDia.setHours(0, 0, 0, 0);
+  const fimDia = new Date(estado.dia);
+  fimDia.setHours(23, 59, 59, 999);
+
+  try {
+    const q = query(
+      collection(db, 'agendamentos'),
+      where('profissionalId', '==', estado.profissional.id),
+      where('data', '>=', Timestamp.fromDate(inicioDia)),
+      where('data', '<=', Timestamp.fromDate(fimDia))
+    );
+    const snap = await getDocs(q);
+    const ocupados = new Set();
+    snap.forEach(doc => {
+      const d = doc.data().data.toDate();
+      ocupados.add(`${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`);
+    });
+
+    const agora = new Date();
+    elHorarios.innerHTML = '';
+    horariosPadrao.forEach(hora => {
+      const btn = document.createElement('button');
+      btn.className = 'btn-horario';
+      btn.textContent = hora;
+      btn.type = 'button';
+
+      const [h, m] = hora.split(':').map(Number);
+      const dataHorario = new Date(estado.dia);
+      dataHorario.setHours(h, m, 0, 0);
+
+      const ocupado = ocupados.has(hora);
+      const passou = dataHorario < agora;
+
+      if (ocupado || passou) {
+        btn.disabled = true;
+      } else {
+        btn.addEventListener('click', () => selecionarHorario(hora, btn));
+      }
+      elHorarios.appendChild(btn);
+    });
+  } catch (e) {
+    console.error(e);
+    elHorarios.innerHTML = '<p class="info-horario">Erro ao carregar horários.</p>';
+  }
 }
 
-[elNome, elTel].forEach(el => el.addEventListener('input', atualizarResumo));
+function selecionarHorario(hora, btn) {
+  estado.horario = hora;
+  document.querySelectorAll('.btn-horario').forEach(b => b.classList.remove('selecionado'));
+  btn.classList.add('selecionado');
+}
 
-// Confirma agendamento
-btnAgendar.addEventListener('click', async () => {
-  const nome = elNome.value.trim();
-  const tel = elTel.value.trim();
-  const servico = servicos.find(s => s.id === selServico.value);
-  const barbeiro = barbeiros.find(b => b.id === selBarbeiro.value);
+// === ENVIO ===
+elForm.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const nome = document.getElementById('nome').value.trim();
+  const telefone = document.getElementById('telefone').value.trim();
 
-  if (!nome || !tel || !servico || !barbeiro || !horarioSelecionado) return;
+  if (!estado.profissional) return mostrarMsg('Selecione um profissional.', 'erro');
+  if (!estado.servico) return mostrarMsg('Selecione um serviço.', 'erro');
+  if (!estado.dia) return mostrarMsg('Selecione um dia.', 'erro');
+  if (!estado.horario) return mostrarMsg('Selecione um horário.', 'erro');
+  if (!nome || !telefone) return mostrarMsg('Preencha seus dados.', 'erro');
 
-  btnAgendar.disabled = true;
-  btnAgendar.textContent = 'Agendando...';
-  elMsg.innerHTML = '';
+  const [h, m] = estado.horario.split(':').map(Number);
+  const dataHora = new Date(estado.dia);
+  dataHora.setHours(h, m, 0, 0);
 
-  const inicio = new Date(horarioSelecionado);
-  const fim = new Date(inicio.getTime() + servico.duracao*60000);
-
-  // Recheca conflito (proteção extra contra corrida)
-  if (estaOcupado(inicio, servico.duracao)) {
-    elMsg.innerHTML = '<div class="mensagem erro">Ops! Esse horário acabou de ser reservado. Escolha outro.</div>';
-    btnAgendar.textContent = 'CONFIRMAR AGENDAMENTO';
-    btnAgendar.disabled = false;
-    horarioSelecionado = null;
-    renderHorarios();
-    return;
-  }
+  const btn = elForm.querySelector('button');
+  btn.disabled = true;
+  btn.textContent = 'Enviando...';
 
   try {
     await addDoc(collection(db, 'agendamentos'), {
-      clienteNome: nome,
-      clienteTelefone: tel,
-      barbeiroId: barbeiro.id,
-      barbeiroNome: barbeiro.nome,
-      servicoId: servico.id,
-      servicoNome: servico.nome,
-      duracao: servico.duracao,
-      preco: servico.preco,
-      dataHoraInicio: Timestamp.fromDate(inicio),
-      dataHoraFim: Timestamp.fromDate(fim),
-      status: 'confirmado',
-      criadoEm: Timestamp.now()
+      nome,
+      telefone,
+      profissionalId: estado.profissional.id,
+      profissionalNome: estado.profissional.nome,
+      servicoId: estado.servico.id,
+      servicoNome: estado.servico.nome,
+      servicoPreco: estado.servico.preco || 0,
+      data: Timestamp.fromDate(dataHora),
+      criadoEm: Timestamp.now(),
+      status: 'pendente'
     });
-
-    elMsg.innerHTML = `<div class="mensagem sucesso">✓ Agendamento confirmado para ${inicio.toLocaleString('pt-BR')}!</div>`;
-    elNome.value = '';
-    elTel.value = '';
-    horarioSelecionado = null;
-    btnAgendar.textContent = 'CONFIRMAR AGENDAMENTO';
-    atualizarResumo();
-  } catch (err) {
-    console.error(err);
-    elMsg.innerHTML = '<div class="mensagem erro">Erro ao agendar: ' + err.message + '</div>';
-    btnAgendar.textContent = 'CONFIRMAR AGENDAMENTO';
-    btnAgendar.disabled = false;
+    mostrarMsg('✅ Agendamento confirmado! Em breve entraremos em contato.', 'sucesso');
+    elForm.reset();
+    estado.horario = null;
+    atualizarHorarios();
+  } catch (e) {
+    console.error(e);
+    mostrarMsg('Erro ao agendar. Tente novamente.', 'erro');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Confirmar Agendamento';
   }
 });
+
+function mostrarMsg(texto, tipo) {
+  elMensagem.textContent = texto;
+  elMensagem.className = `mensagem ${tipo}`;
+  if (tipo === 'sucesso') {
+    setTimeout(() => { elMensagem.className = 'mensagem'; }, 5000);
+  }
+}
