@@ -63,6 +63,24 @@
         <h1>Barbeiros</h1>
         <form class="form-cadastro" id="form-barbeiro">
           <h3 style="color:var(--dourado-claro);margin-bottom:15px;">Cadastrar novo barbeiro</h3>
+
+          <!-- UPLOAD DE FOTO -->
+          <div class="upload-foto-wrap">
+            <label>Foto do Barbeiro</label>
+            <div class="upload-foto">
+              <div class="foto-preview" id="foto-preview">
+                <span id="foto-placeholder">📷<br><small>Clique para escolher</small></span>
+                <img id="foto-img" style="display:none;" alt="Preview">
+              </div>
+              <div class="upload-actions">
+                <input type="file" id="b-foto" accept="image/*" style="display:none;">
+                <button type="button" class="btn-small" id="btn-escolher-foto">Escolher Foto</button>
+                <button type="button" class="btn-small btn-danger" id="btn-remover-foto" style="display:none;">Remover</button>
+                <small style="color:#888;display:block;margin-top:5px;">JPG ou PNG — redimensionada automaticamente</small>
+              </div>
+            </div>
+          </div>
+
           <div class="form-row">
             <div>
               <label>Nome</label>
