@@ -24,10 +24,10 @@ carregarProfissionais();
 carregarServicos();
 gerarDias();
 
-// === PROFISSIONAIS ===
+// === PROFISSIONAIS (coleção: barbeiros) ===
 async function carregarProfissionais() {
   try {
-    const snap = await getDocs(collection(db, 'profissionais'));
+    const snap = await getDocs(collection(db, 'barbeiros'));
     if (snap.empty) {
       elProfissionais.innerHTML = '<p class="carregando">Nenhum profissional cadastrado.</p>';
       return;
@@ -35,6 +35,8 @@ async function carregarProfissionais() {
     elProfissionais.innerHTML = '';
     snap.forEach(doc => {
       const p = { id: doc.id, ...doc.data() };
+      if (p.ativo === false) return; // ignora inativos
+
       const card = document.createElement('div');
       card.className = 'card';
       card.dataset.id = p.id;
@@ -71,6 +73,8 @@ async function carregarServicos() {
     elServicos.innerHTML = '';
     snap.forEach(doc => {
       const s = { id: doc.id, ...doc.data() };
+      if (s.ativo === false) return;
+
       const card = document.createElement('div');
       card.className = 'card';
       card.dataset.id = s.id;
@@ -92,6 +96,7 @@ function selecionarServico(s, card) {
   estado.servico = s;
   document.querySelectorAll('#lista-servicos .card').forEach(c => c.classList.remove('selecionado'));
   card.classList.add('selecionado');
+  atualizarHorarios();
 }
 
 // === DIAS (30 dias à frente) ===
@@ -133,29 +138,31 @@ async function atualizarHorarios() {
 
   elHorarios.innerHTML = '<p class="info-horario">Carregando horários...</p>';
 
-  // Horários padrão (pode ajustar)
+  // Horários padrão (depois dá pra ler do doc config/horarios se quiser)
   const horariosPadrao = [
     '09:00', '10:00', '11:00', '13:00', '14:00',
     '15:00', '16:00', '17:00', '18:00', '19:00'
   ];
 
-  // Buscar agendamentos existentes
   const inicioDia = new Date(estado.dia);
   inicioDia.setHours(0, 0, 0, 0);
   const fimDia = new Date(estado.dia);
   fimDia.setHours(23, 59, 59, 999);
 
   try {
+    // ⚠️ CORRIGIDO: usa barbeiroId e dataHoraInicio (mesmo padrão do admin)
     const q = query(
       collection(db, 'agendamentos'),
-      where('profissionalId', '==', estado.profissional.id),
-      where('data', '>=', Timestamp.fromDate(inicioDia)),
-      where('data', '<=', Timestamp.fromDate(fimDia))
+      where('barbeiroId', '==', estado.profissional.id),
+      where('dataHoraInicio', '>=', Timestamp.fromDate(inicioDia)),
+      where('dataHoraInicio', '<=', Timestamp.fromDate(fimDia))
     );
     const snap = await getDocs(q);
     const ocupados = new Set();
     snap.forEach(doc => {
-      const d = doc.data().data.toDate();
+      const ag = doc.data();
+      if (ag.status === 'cancelado') return; // horário cancelado fica livre
+      const d = ag.dataHoraInicio.toDate();
       ocupados.add(`${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`);
     });
 
@@ -206,25 +213,31 @@ elForm.addEventListener('submit', async (e) => {
   if (!nome || !telefone) return mostrarMsg('Preencha seus dados.', 'erro');
 
   const [h, m] = estado.horario.split(':').map(Number);
-  const dataHora = new Date(estado.dia);
-  dataHora.setHours(h, m, 0, 0);
+  const dataHoraInicio = new Date(estado.dia);
+  dataHoraInicio.setHours(h, m, 0, 0);
+
+  const duracao = Number(estado.servico.duracao) || 30;
+  const dataHoraFim = new Date(dataHoraInicio.getTime() + duracao * 60000);
 
   const btn = elForm.querySelector('button');
   btn.disabled = true;
   btn.textContent = 'Enviando...';
 
   try {
+    // ⚠️ CORRIGIDO: mesma estrutura que o admin.js espera
     await addDoc(collection(db, 'agendamentos'), {
-      nome,
-      telefone,
-      profissionalId: estado.profissional.id,
-      profissionalNome: estado.profissional.nome,
+      clienteNome: nome,
+      clienteTelefone: telefone,
+      barbeiroId: estado.profissional.id,
+      barbeiroNome: estado.profissional.nome,
       servicoId: estado.servico.id,
       servicoNome: estado.servico.nome,
-      servicoPreco: estado.servico.preco || 0,
-      data: Timestamp.fromDate(dataHora),
-      criadoEm: Timestamp.now(),
-      status: 'pendente'
+      preco: Number(estado.servico.preco) || 0,
+      duracao: duracao,
+      dataHoraInicio: Timestamp.fromDate(dataHoraInicio),
+      dataHoraFim: Timestamp.fromDate(dataHoraFim),
+      status: 'confirmado',
+      criadoEm: Timestamp.now()
     });
     mostrarMsg('✅ Agendamento confirmado! Em breve entraremos em contato.', 'sucesso');
     elForm.reset();
