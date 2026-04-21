@@ -4,10 +4,98 @@ import {
   setDoc, getDoc, updateDoc, query, orderBy
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
+// ============ UTILITÁRIO: Redimensionar imagem e converter para base64 ============
+function redimensionarImagem(file, maxSize = 400, quality = 0.8) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const img = new Image();
+      img.onload = () => {
+        // Calcula proporção mantendo aspecto
+        let { width, height } = img;
+        if (width > height) {
+          if (width > maxSize) {
+            height = Math.round((height * maxSize) / width);
+            width = maxSize;
+          }
+        } else {
+          if (height > maxSize) {
+            width = Math.round((width * maxSize) / height);
+            height = maxSize;
+          }
+        }
+
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, width, height);
+
+        // Converte para JPEG base64 (menor tamanho)
+        const base64 = canvas.toDataURL('image/jpeg', quality);
+        resolve(base64);
+      };
+      img.onerror = reject;
+      img.src = e.target.result;
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
 // ============ BARBEIROS ============
 const formBarbeiro = document.getElementById('form-barbeiro');
 const listaBarbeiros = document.getElementById('lista-barbeiros');
 const filtroBarbeiro = document.getElementById('filtro-barbeiro');
+
+// Upload de foto
+const inputFoto = document.getElementById('b-foto');
+const btnEscolherFoto = document.getElementById('btn-escolher-foto');
+const btnRemoverFoto = document.getElementById('btn-remover-foto');
+const fotoPreview = document.getElementById('foto-preview');
+const fotoImg = document.getElementById('foto-img');
+const fotoPlaceholder = document.getElementById('foto-placeholder');
+
+let fotoBase64 = null;
+
+btnEscolherFoto.addEventListener('click', () => inputFoto.click());
+fotoPreview.addEventListener('click', () => inputFoto.click());
+
+inputFoto.addEventListener('change', async (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  if (!file.type.startsWith('image/')) {
+    alert('Selecione um arquivo de imagem válido.');
+    return;
+  }
+  try {
+    fotoBase64 = await redimensionarImagem(file, 400, 0.8);
+    fotoImg.src = fotoBase64;
+    fotoImg.style.display = 'block';
+    fotoPlaceholder.style.display = 'none';
+    btnRemoverFoto.style.display = 'inline-block';
+  } catch (err) {
+    alert('Erro ao processar imagem: ' + err.message);
+  }
+});
+
+btnRemoverFoto.addEventListener('click', () => {
+  fotoBase64 = null;
+  inputFoto.value = '';
+  fotoImg.src = '';
+  fotoImg.style.display = 'none';
+  fotoPlaceholder.style.display = 'block';
+  btnRemoverFoto.style.display = 'none';
+});
+
+function resetFotoUpload() {
+  fotoBase64 = null;
+  inputFoto.value = '';
+  fotoImg.src = '';
+  fotoImg.style.display = 'none';
+  fotoPlaceholder.style.display = 'block';
+  btnRemoverFoto.style.display = 'none';
+}
 
 formBarbeiro.addEventListener('submit', async (e) => {
   e.preventDefault();
@@ -15,10 +103,17 @@ formBarbeiro.addEventListener('submit', async (e) => {
   const telefone = document.getElementById('b-telefone').value.trim();
   if (!nome) return;
   try {
-    await addDoc(collection(db, 'barbeiros'), {
-      nome, telefone, ativo: true, criadoEm: new Date()
-    });
+    const dados = {
+      nome,
+      telefone,
+      ativo: true,
+      criadoEm: new Date()
+    };
+    if (fotoBase64) dados.foto = fotoBase64;
+
+    await addDoc(collection(db, 'barbeiros'), dados);
     formBarbeiro.reset();
+    resetFotoUpload();
   } catch (err) {
     alert('Erro ao cadastrar: ' + err.message);
   }
@@ -31,17 +126,27 @@ onSnapshot(collection(db, 'barbeiros'), (snap) => {
 
   listaBarbeiros.innerHTML = barbeiros.length === 0
     ? '<div class="lista-item"><div class="info">Nenhum barbeiro cadastrado</div></div>'
-    : barbeiros.map(b => `
-      <div class="lista-item">
-        <div class="info">
-          <strong>${b.nome}</strong>
-          <small>${b.telefone || 'Sem telefone'}</small>
+    : barbeiros.map(b => {
+      const fotoHtml = b.foto
+        ? `<img src="${b.foto}" class="mini-foto" alt="${b.nome}">`
+        : `<div class="mini-foto-placeholder">${b.nome.charAt(0).toUpperCase()}</div>`;
+      return `
+        <div class="lista-item">
+          <div class="info" style="display:flex;align-items:center;gap:12px;">
+            ${fotoHtml}
+            <div>
+              <strong>${b.nome}</strong>
+              <small>${b.telefone || 'Sem telefone'}</small>
+            </div>
+          </div>
+          <div class="acoes">
+            <button class="btn-small" onclick="trocarFotoBarbeiro('${b.id}')">${b.foto ? 'Trocar Foto' : 'Add Foto'}</button>
+            ${b.foto ? `<button class="btn-small btn-danger" onclick="removerFotoBarbeiro('${b.id}')">Remover Foto</button>` : ''}
+            <button class="btn-small btn-danger" onclick="excluirBarbeiro('${b.id}')">Excluir</button>
+          </div>
         </div>
-        <div class="acoes">
-          <button class="btn-small btn-danger" onclick="excluirBarbeiro('${b.id}')">Excluir</button>
-        </div>
-      </div>
-    `).join('');
+      `;
+    }).join('');
 
   // Atualiza filtro da agenda
   filtroBarbeiro.innerHTML = '<option value="">Todos</option>' +
@@ -51,6 +156,30 @@ onSnapshot(collection(db, 'barbeiros'), (snap) => {
 window.excluirBarbeiro = async (id) => {
   if (!confirm('Excluir este barbeiro?')) return;
   await deleteDoc(doc(db, 'barbeiros', id));
+};
+
+// Trocar/adicionar foto de barbeiro já cadastrado
+window.trocarFotoBarbeiro = (id) => {
+  const input = document.createElement('input');
+  input.type = 'file';
+  input.accept = 'image/*';
+  input.onchange = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    try {
+      const base64 = await redimensionarImagem(file, 400, 0.8);
+      await updateDoc(doc(db, 'barbeiros', id), { foto: base64 });
+      alert('✓ Foto atualizada!');
+    } catch (err) {
+      alert('Erro: ' + err.message);
+    }
+  };
+  input.click();
+};
+
+window.removerFotoBarbeiro = async (id) => {
+  if (!confirm('Remover a foto deste barbeiro?')) return;
+  await updateDoc(doc(db, 'barbeiros', id), { foto: null });
 };
 
 // ============ SERVIÇOS ============
@@ -180,46 +309,3 @@ diasChips.forEach(chip => {
 });
 
 // Carrega config atual
-(async () => {
-  const ref = doc(db, 'config', 'horarios');
-  const snap = await getDoc(ref);
-  if (snap.exists()) {
-    const c = snap.data();
-    (c.diasSemana || []).forEach(d => {
-      diasSelecionados.add(d);
-      document.querySelector(`.dia-chip[data-dia="${d}"]`)?.classList.add('ativo');
-    });
-    document.getElementById('hora-abertura').value = c.horaAbertura || '09:00';
-    document.getElementById('hora-fechamento').value = c.horaFechamento || '19:00';
-    document.getElementById('intervalo-inicio').value = c.intervaloInicio || '';
-    document.getElementById('intervalo-fim').value = c.intervaloFim || '';
-  } else {
-    // Padrão inicial
-    [1,2,3,4,5,6].forEach(d => {
-      diasSelecionados.add(d);
-      document.querySelector(`.dia-chip[data-dia="${d}"]`)?.classList.add('ativo');
-    });
-    document.getElementById('hora-abertura').value = '09:00';
-    document.getElementById('hora-fechamento').value = '19:00';
-  }
-})();
-
-formConfig.addEventListener('submit', async (e) => {
-  e.preventDefault();
-  const dados = {
-    diasSemana: Array.from(diasSelecionados).sort(),
-    horaAbertura: document.getElementById('hora-abertura').value,
-    horaFechamento: document.getElementById('hora-fechamento').value,
-    intervaloInicio: document.getElementById('intervalo-inicio').value || null,
-    intervaloFim: document.getElementById('intervalo-fim').value || null,
-    atualizadoEm: new Date()
-  };
-  try {
-    await setDoc(doc(db, 'config', 'horarios'), dados);
-    configMsg.textContent = '✓ Configurações salvas!';
-    setTimeout(() => configMsg.textContent = '', 3000);
-  } catch (err) {
-    configMsg.style.color = '#ff6b7a';
-    configMsg.textContent = 'Erro: ' + err.message;
-  }
-});
