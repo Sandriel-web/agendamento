@@ -35,7 +35,7 @@ async function carregarProfissionais() {
     elProfissionais.innerHTML = '';
     snap.forEach(doc => {
       const p = { id: doc.id, ...doc.data() };
-      if (p.ativo === false) return; // ignora inativos
+      if (p.ativo === false) return;
 
       const card = document.createElement('div');
       card.className = 'card';
@@ -129,7 +129,7 @@ function selecionarDia(data, card) {
   atualizarHorarios();
 }
 
-// === HORÁRIOS ===
+// === HORÁRIOS (SEM ÍNDICE COMPOSTO) ===
 async function atualizarHorarios() {
   if (!estado.profissional || !estado.dia) {
     elHorarios.innerHTML = '<p class="info-horario">Selecione um profissional e um dia.</p>';
@@ -138,7 +138,6 @@ async function atualizarHorarios() {
 
   elHorarios.innerHTML = '<p class="info-horario">Carregando horários...</p>';
 
-  // Horários padrão (depois dá pra ler do doc config/horarios se quiser)
   const horariosPadrao = [
     '09:00', '10:00', '11:00', '13:00', '14:00',
     '15:00', '16:00', '17:00', '18:00', '19:00'
@@ -150,20 +149,25 @@ async function atualizarHorarios() {
   fimDia.setHours(23, 59, 59, 999);
 
   try {
-    // ⚠️ CORRIGIDO: usa barbeiroId e dataHoraInicio (mesmo padrão do admin)
+    // ✅ APENAS 1 WHERE — SEM ÍNDICE
     const q = query(
       collection(db, 'agendamentos'),
-      where('barbeiroId', '==', estado.profissional.id),
-      where('dataHoraInicio', '>=', Timestamp.fromDate(inicioDia)),
-      where('dataHoraInicio', '<=', Timestamp.fromDate(fimDia))
+      where('barbeiroId', '==', estado.profissional.id)
     );
     const snap = await getDocs(q);
+
+    // Filtra a data no JavaScript
     const ocupados = new Set();
     snap.forEach(doc => {
       const ag = doc.data();
-      if (ag.status === 'cancelado') return; // horário cancelado fica livre
+      if (ag.status === 'cancelado') return;
+      if (!ag.dataHoraInicio) return;
+
       const d = ag.dataHoraInicio.toDate();
-      ocupados.add(`${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`);
+      if (d >= inicioDia && d <= fimDia) {
+        const hhmm = `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+        ocupados.add(hhmm);
+      }
     });
 
     const agora = new Date();
@@ -188,8 +192,12 @@ async function atualizarHorarios() {
       }
       elHorarios.appendChild(btn);
     });
+
+    if (elHorarios.children.length === 0) {
+      elHorarios.innerHTML = '<p class="info-horario">Nenhum horário disponível.</p>';
+    }
   } catch (e) {
-    console.error(e);
+    console.error('Erro ao buscar horários:', e);
     elHorarios.innerHTML = '<p class="info-horario">Erro ao carregar horários.</p>';
   }
 }
@@ -224,7 +232,6 @@ elForm.addEventListener('submit', async (e) => {
   btn.textContent = 'Enviando...';
 
   try {
-    // ⚠️ CORRIGIDO: mesma estrutura que o admin.js espera
     await addDoc(collection(db, 'agendamentos'), {
       clienteNome: nome,
       clienteTelefone: telefone,
