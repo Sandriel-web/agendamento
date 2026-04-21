@@ -1,0 +1,210 @@
+/* ============================================
+   Sandriel Barbearia - Painel Admin
+   ============================================ */
+:root {
+  --dourado: #D4AF37;
+  --dourado-claro: #E8C86A;
+  --dourado-escuro: #A8872A;
+  --preto: #0D0D0D;
+  --preto-claro: #1A1A1A;
+  --cinza: #2A2A2A;
+  --vermelho: #C41E3A;
+  --azul: #1E3A8A;
+  --branco: #FFFFFF;
+  --verde: #2ecc71;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  font-family: 'Segoe UI', Tahoma, sans-serif;
+  background: var(--preto);
+  color: var(--branco);
+  min-height: 100vh;
+}
+
+/* === LOGIN === */
+.login-wrap {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+.login-box {
+  background: var(--preto-claro);
+  border: 1px solid var(--dourado-escuro);
+  border-radius: 16px;
+  padding: 40px 30px;
+  width: 100%;
+  max-width: 400px;
+  text-align: center;
+  box-shadow: 0 10px 40px rgba(212,175,55,0.1);
+}
+.login-box img { max-width: 150px; margin-bottom: 20px; }
+.login-box h1 { color: var(--dourado); margin-bottom: 5px; letter-spacing: 2px; }
+.login-box p { color: #aaa; margin-bottom: 25px; font-size: 0.9rem; }
+
+input {
+  width: 100%;
+  padding: 12px;
+  background: var(--cinza);
+  border: 1px solid #444;
+  color: var(--branco);
+  border-radius: 8px;
+  margin: 8px 0;
+  font-size: 1rem;
+}
+input:focus { outline: none; border-color: var(--dourado); }
+
+label {
+  display: block;
+  text-align: left;
+  color: var(--dourado-claro);
+  margin: 10px 0 4px;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+button {
+  background: linear-gradient(135deg, var(--dourado), var(--dourado-escuro));
+  color: var(--preto);
+  border: none;
+  padding: 13px;
+  font-weight: 700;
+  border-radius: 8px;
+  cursor: pointer;
+  width: 100%;
+  margin-top: 15px;
+  letter-spacing: 1px;
+  transition: 0.2s;
+}
+button:hover { transform: translateY(-2px); box-shadow: 0 4px 15px rgba(212,175,55,0.3); }
+button.btn-danger { background: var(--vermelho); color: white; }
+button.btn-small { padding: 6px 12px; font-size: 0.85rem; width: auto; margin: 0; }
+
+.erro-msg { color: #ff6b7a; margin-top: 10px; font-size: 0.9rem; }
+
+/* === DASHBOARD === */
+.app {
+  display: grid;
+  grid-template-columns: 250px 1fr;
+  min-height: 100vh;
+}
+.sidebar {
+  background: var(--preto-claro);
+  border-right: 1px solid var(--cinza);
+  padding: 20px 0;
+}
+.sidebar-logo { text-align: center; padding: 10px 20px 25px; border-bottom: 1px solid var(--cinza); }
+.sidebar-logo img { max-width: 90px; }
+.sidebar-logo h2 { color: var(--dourado); margin-top: 8px; font-size: 1rem; letter-spacing: 2px; }
+
+.menu { list-style: none; padding: 20px 0; }
+.menu li {
+  padding: 14px 25px;
+  cursor: pointer;
+  color: #ccc;
+  border-left: 3px solid transparent;
+  transition: 0.2s;
+  font-weight: 600;
+}
+.menu li:hover { background: var(--cinza); color: var(--dourado); }
+.menu li.ativo { background: var(--cinza); color: var(--dourado); border-left-color: var(--dourado); }
+.menu li.sair { color: #ff6b7a; margin-top: 30px; border-top: 1px solid var(--cinza); }
+
+.conteudo { padding: 30px; overflow-y: auto; }
+.conteudo h1 { color: var(--dourado); margin-bottom: 25px; letter-spacing: 1px; }
+
+.secao { display: none; }
+.secao.ativa { display: block; }
+
+/* Cards dashboard */
+.cards-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 15px;
+  margin-bottom: 30px;
+}
+.card-metric {
+  background: var(--preto-claro);
+  border: 1px solid var(--cinza);
+  border-left: 4px solid var(--dourado);
+  padding: 20px;
+  border-radius: 10px;
+}
+.card-metric .label { color: #aaa; font-size: 0.85rem; margin-bottom: 8px; }
+.card-metric .valor { color: var(--dourado); font-size: 2rem; font-weight: 700; }
+
+/* Tabelas e listas */
+.lista { background: var(--preto-claro); border-radius: 10px; overflow: hidden; margin-top: 15px; }
+.lista-item {
+  padding: 15px 20px;
+  border-bottom: 1px solid var(--cinza);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.lista-item:last-child { border-bottom: none; }
+.lista-item .info { flex: 1; min-width: 200px; }
+.lista-item .info strong { color: var(--dourado); }
+.lista-item .info small { color: #aaa; display: block; margin-top: 3px; }
+.lista-item .acoes { display: flex; gap: 8px; }
+
+/* Formulário cadastro */
+.form-cadastro {
+  background: var(--preto-claro);
+  padding: 20px;
+  border-radius: 10px;
+  margin-bottom: 20px;
+  border: 1px solid var(--cinza);
+}
+.form-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 15px;
+}
+
+/* Filtros agenda */
+.filtros {
+  display: flex;
+  gap: 15px;
+  flex-wrap: wrap;
+  margin-bottom: 20px;
+  align-items: end;
+}
+.filtros > div { flex: 1; min-width: 180px; }
+
+.status-badge {
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+.status-confirmado { background: rgba(46,204,113,0.2); color: var(--verde); }
+.status-concluido { background: rgba(100,100,100,0.3); color: #aaa; }
+.status-cancelado { background: rgba(196,30,58,0.2); color: #ff6b7a; }
+
+/* Dias da semana (config) */
+.dias-semana { display: flex; gap: 8px; flex-wrap: wrap; margin: 10px 0; }
+.dia-chip {
+  padding: 8px 14px;
+  background: var(--cinza);
+  border: 1px solid #444;
+  border-radius: 20px;
+  cursor: pointer;
+  font-size: 0.85rem;
+  user-select: none;
+}
+.dia-chip.ativo { background: var(--dourado); color: var(--preto); border-color: var(--dourado); font-weight: 700; }
+
+@media (max-width: 768px) {
+  .app { grid-template-columns: 1fr; }
+  .sidebar { border-right: none; border-bottom: 1px solid var(--cinza); }
+  .menu { display: flex; overflow-x: auto; padding: 10px; }
+  .menu li { white-space: nowrap; padding: 10px 15px; border-left: none; border-bottom: 3px solid transparent; }
+  .menu li.ativo { border-left: none; border-bottom-color: var(--dourado); }
+  .sidebar-logo { display: none; }
+}
